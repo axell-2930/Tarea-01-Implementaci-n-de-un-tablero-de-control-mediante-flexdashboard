@@ -1,36 +1,129 @@
 ---
-title: "Casos covid en costa rica"
+title: "Casos de covid 19 en Costa Rica"
 output: 
   flexdashboard::flex_dashboard:
-    orientation: columns
     vertical_layout: fill
 ---
 
 ```{r setup, include=FALSE}
+library(tidyr)
+library(ggplot2)
 library(flexdashboard)
+library(sf)
+library(leaflet)
+library(kableExtra)
+library(dplyr)
+library(knitr)
+
+#entrada de datos por cantón
+casos_covid_costa_rica = st_read("https://raw.githubusercontent.com/geoprocesamiento-2020i/datos/master/covid19/casos/cr/cr-covid19-cantones.geojson")
+
+#Datos por provincia
+casos_covid_costa_rica2 <- casos_covid_costa_rica  %>% group_by(provincia) %>%
+summarize(confirmados = sum(confirmados, na.rm = TRUE), recuperados = sum(recuperados, na.rm = TRUE), activos = sum(activos, na.rm = TRUE), muertes = sum(muertes, na.rm = TRUE),  area = sum(area, na.rm = TRUE))
 ```
 
-Column {data-width=650}
------------------------------------------------------------------------
-
-### Chart A
+### Mapa que refleja la cantidad de casos confirmados por cantón
 
 ```{r}
+pal <- colorNumeric(palette = "RdBu", domain = casos_covid_costa_rica$confirmados)
 
+leaflet(casos_covid_costa_rica) %>%
+  addTiles() %>%
+  addPolygons(stroke = FALSE, smoothFactor = 0.3, fillOpacity = 1,
+              fillColor = ~pal(confirmados), weight = 2, color = "white", dashArray = "3",
+  popup = paste(casos_covid_costa_rica$canton,"Confirmados:",casos_covid_costa_rica$confirmados,"Muertes:",casos_covid_costa_rica$muertes,"Activos",casos_covid_costa_rica$activos,"Recuperados",casos_covid_costa_rica$recuperados, sep = '<br/>'))
 ```
 
-Column {data-width=350}
------------------------------------------------------------------------
 
-### Chart B
+
+
+
+
+
+
+### Mapa que refleja la cantidad de casos confirmados por provincia
 
 ```{r}
-
+pal.2 <- colorQuantile("Reds", casos_covid_costa_rica2$confirmados, n = 7)
+mapa_provincia <- leaflet(casos_covid_costa_rica2) %>%
+  addTiles() %>%
+  addPolygons(stroke = FALSE, smoothFactor = 0.3, fillOpacity = 1,
+              fillColor = ~pal.2(confirmados), weight = 2, color = "white", dashArray = "3",
+  popup = paste("Provincia: ", casos_covid_costa_rica2$provincia, "<br>",
+                "Confirmados: ", casos_covid_costa_rica2$confirmados, "<br>",
+                "Activos: ", casos_covid_costa_rica2$activos, "<br>",
+                "Recuperados: ", casos_covid_costa_rica2$recuperados,"<br>",
+                "Fallecidos: ", casos_covid_costa_rica2$muertes, "<br>"))
+mapa_provincia
 ```
 
-### Chart C
+
+
+
+
+
+
+
+### Gráfico de barras que muestra la cantidad de casos confirmados por provincia
 
 ```{r}
+provincias_total <- c("Alajuela","San Jose","Cartago","Guanacaste","Limon","Heredia","Puntarenas")
+provincias_total_confirmados <- c(223,453,66,73,16,94,47)
+provincias_grafico <- data.frame(provincias_total,provincias_total_confirmados) 
+
+ggplot(data=provincias_grafico, aes(x=reorder(provincias_total, provincias_total_confirmados), y=provincias_total_confirmados)) +
+  ggtitle("Casos confirmados de Covid-19 en Costa Rica") +
+  xlab("Provincias") + 
+  ylab("Casos confirmados") +
+  geom_bar(stat = "identity", fill = "yellow") +
+  geom_col() +
+  geom_text(aes(label=provincias_total_confirmados), vjust=-0.3, size=3.5)
 
 ```
 
+### Tabla que muestra la cantidad de casos confirmados, recuperados, fallecidos en cada cantón
+
+```{r}
+casos_covid_costa_rica.order <- order(casos_covid_costa_rica$canton)
+casos_covid_costa_rica.ordenadoxcanton <- casos_covid_costa_rica[casos_covid_costa_rica.order,]
+
+kable(
+  casos_covid_costa_rica.ordenadoxcanton[, c("canton","confirmados","recuperados","activos","muertes"), drop = TRUE], 
+  col.names=c("Cantones","Confirmados","Recuperados","Activos","Muertes"),  
+  caption="Casos Covid 19 en Costa Rica") %>%
+kable_styling() %>%
+scroll_box(
+  width = "800px", 
+  height = "500px", 
+  fixed_thead = TRUE)
+```
+
+Cuadros informativos
+==============================================================================================================
+
+
+
+
+### Total de casos confirmados de covid-19 en Costa Rica
+```{r}
+valueBox (972 ,  caption  = "Total de casos confirmados" ,  icon  = "fa-pencil")
+```
+
+### Total de muertes por covid-19 en Costa Rica
+
+```{r}
+valueBox (10 ,  caption  = "Total de muertes" ,  icon  = "fa-pencil")
+```
+
+### Total de casos recuperados de covid-19 en Costa Rica
+
+```{r}
+valueBox (639 ,  caption  = "Total de recuperados" ,  icon  = "fa-pencil")
+```
+
+### Total de casos activos de covid-19 en Costa Rica
+
+```{r}
+valueBox (323 ,  caption  = "Total de activos" ,  icon  = "fa-pencil")
+```
